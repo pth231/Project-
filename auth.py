@@ -1,6 +1,6 @@
 """
 JWT creation and verification using FALCON signatures. 
-Follows teacher's HMAC.py pattern: choose algorithm, generate key, compute MAC.
+Follows HMAC.py pattern: choose algorithm, generate key, compute MAC.
 """
 
 import json
@@ -29,9 +29,9 @@ def hash_password(password: str) -> str:
     Returns:
         hashed password string
     """
-    print("[cyan]Hashing password with Argon2...[/cyan]")
+    print("Hashing password with Argon2...")
     hashed = _ph.hash(password)
-    print(f"[yellow]Hash (first 40 chars):[/yellow] {hashed[:40]}...")
+    print(f"Hash (first 40 chars): {hashed[:40]}...")
     return hashed
 
 
@@ -48,10 +48,10 @@ def verify_password(password: str, hashed: str) -> bool:
     """
     try:
         _ph.verify(hashed, password)
-        print("[green]✓ Password verified[/green]")
+        print("OK Password verified")
         return True
     except (VerifyMismatchError, InvalidHash):
-        print("[red]✗ Password verification failed[/red]")
+        print("FAIL Password verification failed")
         return False
 
 
@@ -68,7 +68,7 @@ def create_jwt(payload: dict, falcon_private_key: bytes) -> str:
     Returns:
         JWT token string
     """
-    print("[cyan]Creating JWT with FALCON signature...[/cyan]")
+    print("Creating JWT with FALCON signature...")
     
     # JWT Header
     header = {
@@ -96,13 +96,13 @@ def create_jwt(payload: dict, falcon_private_key: bytes) -> str:
     signing_input = f"{header_b64}.{payload_b64}".encode()
     
     # Sign with FALCON
-    print(f"[yellow]Payload:[/yellow] {json.dumps(payload_with_claims)}")
+    print(f"Payload: {json.dumps(payload_with_claims)}")
     signature = falcon_sign(falcon_private_key, signing_input)
     signature_b64 = base64.urlsafe_b64encode(signature).decode().rstrip('=')
     
     jwt_token = f"{signing_input.decode()}.{signature_b64}"
-    print(f"[green]✓ JWT created[/green]")
-    print(f"[yellow]Token (first 50 chars):[/yellow] {jwt_token[:50]}...\n")
+    print(f"OK JWT created")
+    print(f"Token (first 50 chars): {jwt_token[:50]}...\n")
     
     return jwt_token
 
@@ -121,7 +121,7 @@ def verify_jwt(token: str, falcon_public_key: bytes) -> dict:
     Raises:
         ValueError: if token is invalid or expired
     """
-    print("[cyan]Verifying JWT with FALCON signature...[/cyan]")
+    print("Verifying JWT with FALCON signature...")
     
     try:
         # Split token into 3 parts
@@ -158,11 +158,11 @@ def verify_jwt(token: str, falcon_public_key: bytes) -> dict:
         if exp and exp < time.time():
             raise ValueError("JWT token expired")
         
-        print(f"[yellow]Payload:[/yellow] {json.dumps(payload)}")
-        print(f"[green]✓ JWT verified and valid[/green]\n")
+        print(f"Payload: {json.dumps(payload)}")
+        print(f"OK JWT verified and valid\n")
         
         return payload
         
     except Exception as e:
-        print(f"[red]✗ JWT verification failed: {str(e)}[/red]\n")
+        print(f"FAIL JWT verification failed: {str(e)}\n")
         raise ValueError(f"JWT verification failed: {str(e)}")

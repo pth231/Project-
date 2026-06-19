@@ -1,7 +1,7 @@
 """
 This module wraps AES-256-GCM (from PyCryptodome) and FALCON-512 via liboqs.
-Style follows teacher's ECDHE_lab_menu_v2.py: functions are standalone, print 
-intermediate values for teaching/demo purposes.
+Style follows ECDHE_lab_menu_v2.py: functions are standalone and print 
+intermediate values for learning/demo purposes.
 """
 
 import secrets
@@ -23,26 +23,26 @@ def aes_encrypt(plaintext: bytes, key: bytes) -> dict:
     Returns:
         dict with keys: ciphertext, nonce, tag (all hex strings)
     """
-    print("[bold cyan]=== AES-256-GCM Encrypt ===[/bold cyan]")
+    print("=== AES-256-GCM Encrypt ===")
     
     # Generate random 16-byte nonce
     nonce = secrets.token_bytes(16)
-    print(f"[yellow]Nonce (16 bytes):[/yellow] {binascii.hexlify(nonce).decode()}")
+    print(f"Nonce (16 bytes): {binascii.hexlify(nonce).decode()}")
     
     # Create cipher and encrypt
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
     ciphertext, tag = cipher.encrypt_and_digest(plaintext)
     
-    print(f"[yellow]Key size:[/yellow] {len(key)} bytes")
-    print(f"[yellow]Plaintext size:[/yellow] {len(plaintext)} bytes")
-    print(f"[yellow]Ciphertext size:[/yellow] {len(ciphertext)} bytes")
-    print(f"[yellow]Auth tag (16 bytes):[/yellow] {binascii.hexlify(tag).decode()}")
+    print(f"Key size: {len(key)} bytes")
+    print(f"Plaintext size: {len(plaintext)} bytes")
+    print(f"Ciphertext size: {len(ciphertext)} bytes")
+    print(f"Auth tag (16 bytes): {binascii.hexlify(tag).decode()}")
     
     ciphertext_hex = binascii.hexlify(ciphertext).decode()
     nonce_hex = binascii.hexlify(nonce).decode()
     tag_hex = binascii.hexlify(tag).decode()
     
-    print(f"[green]✓ Encryption successful[/green]")
+    print(f"OK Encryption successful")
     
     return {
         "ciphertext": ciphertext_hex,
@@ -67,27 +67,27 @@ def aes_decrypt(ciphertext_hex: str, key: bytes, nonce_hex: str, tag_hex: str) -
     Raises:
         ValueError: if tag verification fails
     """
-    print("[bold cyan]=== AES-256-GCM Decrypt ===[/bold cyan]")
+    print("=== AES-256-GCM Decrypt ===")
     
     # Convert hex to bytes
     ciphertext = binascii.unhexlify(ciphertext_hex)
     nonce = binascii.unhexlify(nonce_hex)
     tag = binascii.unhexlify(tag_hex)
     
-    print(f"[yellow]Ciphertext size:[/yellow] {len(ciphertext)} bytes")
-    print(f"[yellow]Nonce (16 bytes):[/yellow] {nonce_hex}")
-    print(f"[yellow]Auth tag (16 bytes):[/yellow] {tag_hex}")
+    print(f"Ciphertext size: {len(ciphertext)} bytes")
+    print(f"Nonce (16 bytes): {nonce_hex}")
+    print(f"Auth tag (16 bytes): {tag_hex}")
     
     # Create cipher and decrypt
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
     
     try:
         plaintext = cipher.decrypt_and_verify(ciphertext, tag)
-        print(f"[yellow]Plaintext size:[/yellow] {len(plaintext)} bytes")
-        print(f"[green]✓ Decryption and verification successful[/green]")
+        print(f"Plaintext size: {len(plaintext)} bytes")
+        print(f"OK Decryption and verification successful")
         return plaintext
     except ValueError as e:
-        print(f"[red]✗ Tag verification failed: {str(e)}[/red]")
+        print(f"FAIL Tag verification failed: {str(e)}")
         raise ValueError(f"Tag verification failed: {str(e)}")
 
 
@@ -99,18 +99,18 @@ def generate_falcon_keypair() -> Tuple[bytes, bytes]:
     Returns:
         tuple of (public_key_bytes, private_key_bytes)
     """
-    print("[bold cyan]=== Generate Keypair ===[/bold cyan]")
+    print("=== Generate Keypair ===")
     
     try:
         import liboqs
-        print("[yellow]Attempting to use FALCON-512 (liboqs)...[/yellow]")
+        print("Attempting to use FALCON-512 (liboqs)...")
         sig = liboqs.OQS_SIG("Falcon-512")
         public_key = sig.generate_keyset()
         private_key = sig.export_secret_key()
-        print(f"[green]✓ FALCON-512[/green] Public key: {len(public_key)} bytes, Private key: {len(private_key)} bytes")
+        print(f"OK FALCON-512 Public key: {len(public_key)} bytes, Private key: {len(private_key)} bytes")
         return (public_key, private_key)
     except ImportError:
-        print("[yellow]⚠ liboqs not found, using RSA-2048 fallback[/yellow]")
+        print("! liboqs not found, using RSA-2048 fallback")
         
         from cryptography.hazmat.primitives import serialization
         from cryptography.hazmat.primitives.asymmetric import rsa
@@ -136,7 +136,7 @@ def generate_falcon_keypair() -> Tuple[bytes, bytes]:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
         
-        print(f"[yellow]RSA-2048[/yellow] Public key: {len(public_key_pem)} bytes, Private key: {len(private_key_pem)} bytes")
+        print(f"RSA-2048 Public key: {len(public_key_pem)} bytes, Private key: {len(private_key_pem)} bytes")
         return (public_key_pem, private_key_pem)
 
 
@@ -152,22 +152,22 @@ def falcon_sign(private_key: bytes, message: bytes) -> bytes:
     Returns:
         signature bytes
     """
-    print("[bold cyan]=== Sign Message ===[/bold cyan]")
-    print(f"[yellow]Message length:[/yellow] {len(message)} bytes")
+    print("=== Sign Message ===")
+    print(f"Message length: {len(message)} bytes")
     
     try:
         import liboqs
-        print("[yellow]Algorithm:[/yellow] FALCON-512")
+        print("Algorithm: FALCON-512")
         sig = liboqs.OQS_SIG("Falcon-512")
         sig.import_secret_key(private_key)
         signature = sig.sign(message)
-        print(f"[yellow]Signature length:[/yellow] {len(signature)} bytes")
+        print(f"Signature length: {len(signature)} bytes")
         sig_hex_preview = binascii.hexlify(signature[:32]).decode() + "..."
-        print(f"[yellow]Signature (first 32 bytes):[/yellow] {sig_hex_preview}")
-        print(f"[green]✓ Signature created[/green]")
+        print(f"Signature (first 32 bytes): {sig_hex_preview}")
+        print(f"OK Signature created")
         return signature
     except ImportError:
-        print("[yellow]Algorithm:[/yellow] RSA-2048 PSS")
+        print("Algorithm: RSA-2048 PSS")
         
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import padding
@@ -190,10 +190,10 @@ def falcon_sign(private_key: bytes, message: bytes) -> bytes:
             hashes.SHA256()
         )
         
-        print(f"[yellow]Signature length:[/yellow] {len(signature)} bytes")
+        print(f"Signature length: {len(signature)} bytes")
         sig_hex_preview = binascii.hexlify(signature[:32]).decode() + "..."
-        print(f"[yellow]Signature (first 32 bytes):[/yellow] {sig_hex_preview}")
-        print(f"[green]✓ Signature created[/green]")
+        print(f"Signature (first 32 bytes): {sig_hex_preview}")
+        print(f"OK Signature created")
         return signature
 
 
@@ -210,25 +210,25 @@ def falcon_verify(public_key: bytes, message: bytes, signature: bytes) -> bool:
     Returns:
         True if valid, False otherwise
     """
-    print("[bold cyan]=== Verify Signature ===[/bold cyan]")
-    print(f"[yellow]Message length:[/yellow] {len(message)} bytes")
-    print(f"[yellow]Signature length:[/yellow] {len(signature)} bytes")
+    print("=== Verify Signature ===")
+    print(f"Message length: {len(message)} bytes")
+    print(f"Signature length: {len(signature)} bytes")
     
     try:
         import liboqs
-        print("[yellow]Algorithm:[/yellow] FALCON-512")
+        print("Algorithm: FALCON-512")
         sig = liboqs.OQS_SIG("Falcon-512")
         sig.import_public_key(public_key)
         is_valid = sig.verify(message, signature)
         
         if is_valid:
-            print("[green]✓ Signature valid[/green]")
+            print("OK Signature valid")
             return True
         else:
-            print("[red]✗ Signature invalid[/red]")
+            print("FAIL Signature invalid")
             return False
     except ImportError:
-        print("[yellow]Algorithm:[/yellow] RSA-2048 PSS")
+        print("Algorithm: RSA-2048 PSS")
         
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import padding
@@ -252,20 +252,20 @@ def falcon_verify(public_key: bytes, message: bytes, signature: bytes) -> bool:
                 hashes.SHA256()
             )
             
-            print("[green]✓ Signature valid[/green]")
+            print("OK Signature valid")
             return True
         except Exception:
-            print("[red]✗ Signature invalid[/red]")
+            print("FAIL Signature invalid")
             return False
 
 
 if __name__ == "__main__":
-    print("[bold]" + "=" * 76)
+    print("" + "=" * 76)
     print("crypto_utils.py Self-Test")
-    print("=" * 76 + "[/bold]\n")
+    print("=" * 76 + "\n")
     
     # Test 1: AES encryption/decryption
-    print("[bold cyan]Test 1: AES-256-GCM[/bold cyan]\n")
+    print("Test 1: AES-256-GCM\n")
     aes_key = secrets.token_bytes(32)
     plaintext = b"Hello Secure Shop!"
     
@@ -281,10 +281,10 @@ if __name__ == "__main__":
     print()
     
     assert decrypted == plaintext, "AES decrypt failed!"
-    print("[green]✓ AES encryption/decryption test passed[/green]\n")
+    print("OK AES encryption/decryption test passed\n")
     
     # Test 2: FALCON keypair and signing
-    print("[bold cyan]Test 2: FALCON Signing[/bold cyan]\n")
+    print("Test 2: FALCON Signing\n")
     pub_key, priv_key = generate_falcon_keypair()
     print()
     
@@ -296,9 +296,9 @@ if __name__ == "__main__":
     print()
     
     assert is_valid, "FALCON verification failed!"
-    print("[green]✓ FALCON signing/verification test passed[/green]\n")
+    print("OK FALCON signing/verification test passed\n")
     
     # Final summary
-    print("[bold cyan]" + "=" * 76)
+    print("" + "=" * 76)
     print("=== All crypto_utils self-tests passed! ===")
-    print("=" * 76 + "[/bold cyan]")
+    print("=" * 76 + "")

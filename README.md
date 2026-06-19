@@ -84,9 +84,9 @@ Register a new user with Argon2 password hashing.
 **Request:**
 ```json
 {
-  "username": "alice",
+  "username": "nguyen_van_a",
   "password": "secure_password_123",
-  "email": "alice@secure-shop.local"
+  "email": "nguyenvana@secure-shop.local"
 }
 ```
 
@@ -94,7 +94,7 @@ Register a new user with Argon2 password hashing.
 ```json
 {
   "status": "success",
-  "username": "alice",
+  "username": "nguyen_van_a",
   "message": "Registration successful"
 }
 ```
@@ -106,7 +106,7 @@ Login and receive FALCON-signed JWT token.
 **Request:**
 ```json
 {
-  "username": "alice",
+  "username": "nguyen_van_a",
   "password": "secure_password_123"
 }
 ```
@@ -114,7 +114,7 @@ Login and receive FALCON-signed JWT token.
 **Response:**
 ```json
 {
-  "username": "alice",
+  "username": "nguyen_van_a",
   "token": "eyJhbGc...",
   "message": "Login successful - JWT contains FALCON signature"
 }
@@ -125,8 +125,8 @@ Login and receive FALCON-signed JWT token.
 {
   "alg": "FALCON-512",
   "typ": "JWT",
-  "username": "alice",
-  "email": "alice@secure-shop.local",
+  "username": "nguyen_van_a",
+  "email": "nguyenvana@secure-shop.local",
   "role": "customer",
   "iat": 1718904000,
   "exp": 1718907600
@@ -137,16 +137,16 @@ Login and receive FALCON-signed JWT token.
 
 ## Demo Flow (demo.py)
 
-The demo script automates the entire flow shown to the professor:
+The demo script automates the entire API flow:
 
 1. **Startup** → Start FastAPI server in subprocess
 2. **Register** → POST /register with test user
 3. **Login** → POST /login, receive FALCON-signed JWT
-4. **JWT Analysis** → Decode and verify FALCON signature structure
-5. **Summary** → Show results table with ✓ status
+4. **JWT Analysis** → Decode and inspect JWT structure
+5. **Summary** → Show results table status
 6. **Cleanup** → Stop server cleanly
 
-All output is colored using `rich` for clarity.
+All output is shown in the terminal.
 
 ---
 
@@ -227,21 +227,21 @@ is_wrong = verify_password("wrong", hashed)             # False
 
 ---
 
-## For Tomorrow's Presentation
+## Demo Run
 
-**What to show the professor:**
+Run `python demo.py` in terminal to exercise the full API flow.
 
-1. Run `python demo.py` in terminal
-2. Show registration happening in real-time
-3. Show login and JWT token generation
-4. Decode JWT and point out FALCON-512 algorithm
-5. Show colored output with ✓ checkmarks
-6. Highlight "Post-quantum" safety in FALCON
+The demo shows:
+- registration
+- login
+- JWT creation
+- JWT decoding and structure verification
+- cleanup of the server subprocess
 
-**Key talking points:**
-- AES-256-GCM for data encryption (symmetric)
-- FALCON-512 for signatures (post-quantum resistant)
-- Argon2 for password security
+**Key points:**
+- AES-256-GCM for authenticated symmetric encryption
+- FALCON-512 (or RSA fallback) for JWT signatures
+- Argon2 for password hashing
 - JWT for stateless authentication
 - All operations logged with rich colors for clarity
 
@@ -249,7 +249,7 @@ is_wrong = verify_password("wrong", hashed)             # False
 
 ## Phase 1 Roadmap (Next Week)
 
-After presenting Phase 0, the following features are planned:
+After Phase 0, the following features are planned:
 
 - [ ] PostgreSQL integration with SQLAlchemy
 - [ ] AES-encrypted columns for PII (email, address)
@@ -282,7 +282,7 @@ After presenting Phase 0, the following features are planned:
 ## Student Notes
 
 - All crypto operations print intermediate values for learning
-- Follow teacher's ECDHE_lab_menu_v2.py style: print hex values, show steps
+- Follow ECDHE_lab_menu_v2.py style: print hex values, show steps
 - JWT is not encrypted, only signed — ciphertext is base64url visible but signature ensures authenticity
 - FALCON-512 provides post-quantum security: resistant to future quantum computers
 - This demo proves "real cryptography" not just theory
@@ -290,5 +290,5 @@ After presenting Phase 0, the following features are planned:
 ---
 
 **Last updated**: June 19, 2026 @ 23:45  
-**Demo status**: Ready for presentation ✅  
+**Demo status**: Ready to run ✅
 **Prepared by**: Security Systems Project Team

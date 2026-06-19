@@ -14,9 +14,9 @@ users_db = {}  # {username: {"password_hash": str, "email": str}}
 # Generate FALCON keypair for JWT signing on startup
 try:
     FALCON_PUBLIC_KEY, FALCON_PRIVATE_KEY = generate_falcon_keypair()
-    print("[green]✓ FALCON keypair generated for JWT signing[/green]")
+    print("OK FALCON keypair generated for JWT signing")
 except Exception as e:
-    print(f"[red]✗ Failed to generate FALCON keypair: {str(e)}[/red]")
+    print(f"FAIL Failed to generate FALCON keypair: {str(e)}")
     raise
 
 
@@ -52,12 +52,12 @@ def register(req: RegisterRequest):
     - Store in-memory
     - Return success message
     """
-    print(f"\n[bold cyan]=== POST /register ===[/bold cyan]")
-    print(f"[yellow]Username:[/yellow] {req.username}")
-    print(f"[yellow]Email:[/yellow] {req.email}")
+    print(f"\n=== POST /register ===")
+    print(f"Username: {req.username}")
+    print(f"Email: {req.email}")
     
     if req.username in users_db:
-        print(f"[red]✗ User already exists[/red]\n")
+        print(f"FAIL User already exists\n")
         raise HTTPException(status_code=400, detail="User already exists")
     
     # Hash password
@@ -69,7 +69,7 @@ def register(req: RegisterRequest):
         "email": req.email
     }
     
-    print(f"[green]✓ User registered successfully[/green]\n")
+    print(f"OK User registered successfully\n")
     return {
         "status": "success",
         "username": req.username,
@@ -86,18 +86,18 @@ def login(req: LoginRequest):
     - Create JWT signed with FALCON
     - Return token
     """
-    print(f"\n[bold cyan]=== POST /login ===[/bold cyan]")
-    print(f"[yellow]Username:[/yellow] {req.username}")
+    print(f"\n=== POST /login ===")
+    print(f"Username: {req.username}")
     
     if req.username not in users_db:
-        print(f"[red]✗ User not found[/red]\n")
+        print(f"FAIL User not found\n")
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
     user = users_db[req.username]
     
     # Verify password
     if not verify_password(req.password, user["password_hash"]):
-        print(f"[red]✗ Login failed[/red]\n")
+        print(f"FAIL Login failed\n")
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
     # Create JWT with FALCON signature
@@ -108,7 +108,7 @@ def login(req: LoginRequest):
     }
     token = create_jwt(payload, FALCON_PRIVATE_KEY)
     
-    print(f"[green]✓ Login successful[/green]\n")
+    print(f"OK Login successful\n")
     return LoginResponse(
         username=req.username,
         token=token,
@@ -117,7 +117,7 @@ def login(req: LoginRequest):
 
 
 if __name__ == "__main__":
-    print("\n[bold cyan]" + "=" * 76)
+    print("\n" + "=" * 76)
     print("Starting Secure Shop API")
-    print("=" * 76 + "[/bold cyan]\n")
+    print("=" * 76 + "\n")
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

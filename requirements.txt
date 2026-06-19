@@ -1,4 +1,4 @@
-# Already used by teacher's files
+# Based on reference example files
 cryptography>=42.0.0
 
 # Web framework
