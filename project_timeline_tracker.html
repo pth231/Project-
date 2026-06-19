@@ -1,0 +1,208 @@
+
+<h2 class="sr-only">Timeline và checklist build project bảo mật theo từng giai đoạn</h2>
+<style>
+.tl { font-family: var(--font-sans); padding: 1rem 0; }
+.tl-phase { margin-bottom: 1.5rem; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
+.tl-phase-header { padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+.tl-phase-header.p0 { background: #FAEEDA; }
+.tl-phase-header.p1 { background: #E1F5EE; }
+.tl-phase-header.p2 { background: #E6F1FB; }
+.tl-phase-header.p3 { background: #EEEDFE; }
+.tl-badge { font-size: 11px; font-weight: 500; padding: 2px 10px; border-radius: 20px; }
+.tl-badge.tonight { background: #EF9F27; color: #412402; }
+.tl-badge.w1 { background: #1D9E75; color: #04342C; }
+.tl-badge.w2a { background: #185FA5; color: #E6F1FB; }
+.tl-badge.w2b { background: #534AB7; color: #EEEDFE; }
+.tl-phase-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
+.tl-phase-sub { font-size: 12px; color: var(--color-text-secondary); margin-left: auto; }
+.tl-steps { padding: 0 16px 12px; background: var(--color-background-primary); }
+.tl-step { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.tl-step:last-child { border-bottom: none; }
+.tl-num { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; flex-shrink: 0; margin-top: 1px; }
+.tl-num.amber { background: #FAEEDA; color: #633806; }
+.tl-num.teal { background: #E1F5EE; color: #085041; }
+.tl-num.blue { background: #E6F1FB; color: #0C447C; }
+.tl-num.purple { background: #EEEDFE; color: #3C3489; }
+.tl-step-body { flex: 1; }
+.tl-step-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 2px; }
+.tl-step-desc { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 5px; line-height: 1.5; }
+.tl-prompt { font-size: 11px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 4px 10px; color: var(--color-text-secondary); font-family: var(--font-mono); display: block; margin-top: 4px; cursor: pointer; transition: background .15s; }
+.tl-prompt:hover { background: var(--color-background-tertiary); }
+.tl-tag { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 4px; margin-right: 4px; font-weight: 500; }
+.tl-tag.algo { background: #E6F1FB; color: #0C447C; }
+.tl-tag.file { background: #F1EFE8; color: #444441; }
+.tl-tag.demo { background: #FAEEDA; color: #633806; }
+.tl-divider { font-size: 11px; color: var(--color-text-tertiary); padding: 8px 0 2px; font-weight: 500; letter-spacing: .04em; }
+</style>
+
+<div class="tl">
+
+<div class="tl-phase">
+  <div class="tl-phase-header p0">
+    <span class="tl-badge tonight">Tối nay — demo ngày mai</span>
+    <span class="tl-phase-title">Phase 0: Skeleton chạy được</span>
+    <span class="tl-phase-sub">~3–4 giờ</span>
+  </div>
+  <div class="tl-steps">
+    <div class="tl-divider">Mục tiêu: thầy thấy terminal chạy, có output crypto thật</div>
+
+    <div class="tl-step">
+      <div class="tl-num amber">1</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Setup môi trường + cài thư viện</p>
+        <p class="tl-step-desc">Tạo virtualenv, cài FastAPI + liboqs-python (FALCON) + PyCryptodome (AES). Verify import được.</p>
+        <span class="tl-tag file">requirements.txt</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để tạo requirements.txt và setup.py cho project FastAPI bảo mật với liboqs, PyCryptodome, python-jose')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+
+    <div class="tl-step">
+      <div class="tl-num amber">2</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Module crypto_utils.py — AES + FALCON</p>
+        <p class="tl-step-desc">Viết 3 hàm: <code>aes_encrypt()</code>, <code>aes_decrypt()</code>, <code>falcon_sign()</code>, <code>falcon_verify()</code>. Chạy test nhỏ in ra ciphertext và signature.</p>
+        <span class="tl-tag algo">AES-256-GCM</span><span class="tl-tag algo">FALCON-512</span>
+        <span class="tl-tag file">crypto_utils.py</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để viết file crypto_utils.py với FastAPI, dùng PyCryptodome cho AES-256-GCM và liboqs cho FALCON-512 sign/verify, kèm test script in ra ciphertext và signature để demo')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+
+    <div class="tl-step">
+      <div class="tl-num amber">3</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">API endpoint /register + /login</p>
+        <p class="tl-step-desc">Nhận username/password → hash Argon2 → lưu dict in-memory (chưa cần DB) → trả JWT được ký FALCON. Demo được luồng đăng nhập end-to-end.</p>
+        <span class="tl-tag algo">FALCON JWT</span><span class="tl-tag demo">DEMO ngày mai</span>
+        <span class="tl-tag file">main.py</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để viết FastAPI với 2 endpoint /register và /login: hash password bằng argon2-cffi, tạo JWT ký bằng FALCON từ crypto_utils.py, lưu user in-memory dict, trả token về client')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+
+    <div class="tl-step">
+      <div class="tl-num amber">4</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Script demo terminal — chạy trước mặt thầy</p>
+        <p class="tl-step-desc">File <code>demo.py</code> tự động: gọi /register → /login → in JWT → verify FALCON signature → in "✓ Signature valid". Thầy thấy output thực, không phải mock.</p>
+        <span class="tl-tag demo">DEMO ngày mai</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để viết demo.py: dùng httpx gọi /register rồi /login, lấy JWT về, verify FALCON signature, in kết quả đẹp ra terminal với màu sắc dùng rich hoặc colorama')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tl-phase">
+  <div class="tl-phase-header p1">
+    <span class="tl-badge w1">Tuần 1 — sau báo cáo</span>
+    <span class="tl-phase-title">Phase 1: Core security hoàn chỉnh</span>
+    <span class="tl-phase-sub">5–6 ngày</span>
+  </div>
+  <div class="tl-steps">
+    <div class="tl-step">
+      <div class="tl-num teal">5</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Kết nối PostgreSQL + AES encrypt column</p>
+        <p class="tl-step-desc">Dùng SQLAlchemy, lưu PII (email, địa chỉ) dưới dạng ciphertext AES trong DB. Có thể demo: query thẳng DB thấy hex, query qua API thấy plaintext.</p>
+        <span class="tl-tag algo">AES-256-GCM</span><span class="tl-tag file">models.py</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để tích hợp PostgreSQL vào FastAPI dùng SQLAlchemy, mã hóa các cột nhạy cảm (email, address) bằng AES-256-GCM từ crypto_utils.py trước khi lưu, decrypt khi đọc ra')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+
+    <div class="tl-step">
+      <div class="tl-num teal">6</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">ECDHE key exchange simulation</p>
+        <p class="tl-step-desc">Viết script mô phỏng ECDHE giữa "client" và "server" dùng <code>cryptography</code> lib (X25519). In ra: ephemeral public keys, shared secret, session key. Chứng minh forward secrecy.</p>
+        <span class="tl-tag algo">ECDHE X25519</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để viết ecdhe_demo.py mô phỏng ECDHE key exchange giữa client và server dùng thư viện cryptography Python với X25519, in ra public keys, shared secret, derived session key AES, và chứng minh mỗi lần chạy ra session key khác nhau')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+
+    <div class="tl-step">
+      <div class="tl-num teal">7</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Middleware xác thực JWT FALCON trên mọi request</p>
+        <p class="tl-step-desc">FastAPI dependency injection: mọi protected endpoint đều verify FALCON JWT trước khi xử lý. Trả 401 nếu token không hợp lệ hoặc hết hạn.</p>
+        <span class="tl-tag algo">FALCON</span><span class="tl-tag file">auth.py</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để viết FastAPI dependency get_current_user() verify JWT được ký FALCON, dùng làm Depends() trên các protected endpoint, trả HTTPException 401 nếu invalid')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+
+    <div class="tl-step">
+      <div class="tl-num teal">8</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Audit log bất biến</p>
+        <p class="tl-step-desc">Ghi mọi action (login, đặt hàng, thay đổi dữ liệu) vào log file có FALCON signature và timestamp. Không thể xóa dòng cũ mà không phát hiện.</p>
+        <span class="tl-tag algo">FALCON</span><span class="tl-tag algo">AES</span><span class="tl-tag file">audit.py</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để viết audit_log.py: mỗi entry có timestamp, action, user_id, FALCON signature của toàn bộ entry, lưu append-only vào file JSON Lines, có hàm verify_log() kiểm tra toàn vẹn toàn bộ log')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tl-phase">
+  <div class="tl-phase-header p2">
+    <span class="tl-badge w2a">Tuần 2A — đầu tuần</span>
+    <span class="tl-phase-title">Phase 2: Payment flow + testing</span>
+    <span class="tl-phase-sub">3–4 ngày</span>
+  </div>
+  <div class="tl-steps">
+    <div class="tl-step">
+      <div class="tl-num blue">9</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Order service + mock payment</p>
+        <p class="tl-step-desc">Endpoint đặt hàng → ECDHE với mock payment gateway → tạo invoice → ký FALCON → trả về. Dùng httpx mock thay vì gateway thật.</p>
+        <span class="tl-tag algo">ECDHE</span><span class="tl-tag algo">FALCON</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để viết order_service.py trong FastAPI: endpoint POST /orders tạo đơn hàng, simulate ECDHE key exchange với mock payment gateway, tạo invoice dict ký bằng FALCON, lưu vào DB')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+
+    <div class="tl-step">
+      <div class="tl-num blue">10</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Penetration testing script</p>
+        <p class="tl-step-desc">Viết các test case: SQL injection attempt, replay attack (gửi lại JWT cũ), brute force login. Chứng minh hệ thống block hết.</p>
+        <span class="tl-tag demo">Kết quả test</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để viết pentest_suite.py: test SQL injection vào login endpoint, test replay attack bằng cách gửi lại JWT đã dùng, test brute force login 100 lần, in kết quả pass/fail cho từng test')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+
+    <div class="tl-step">
+      <div class="tl-num blue">11</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Benchmark performance</p>
+        <p class="tl-step-desc">So sánh latency có/không có crypto layer: login time, encrypt/decrypt time, FALCON sign/verify time. Xuất bảng số liệu để đưa vào báo cáo.</p>
+        <span class="tl-tag demo">Số liệu báo cáo</span>
+        <code class="tl-prompt" onclick="sendPrompt('Cho tôi prompt Codex để viết benchmark.py: đo thời gian AES encrypt/decrypt 1KB/1MB, FALCON sign/verify, login endpoint latency với/không có crypto, chạy 100 lần lấy trung bình, in bảng kết quả')">Lấy prompt Codex cho bước này ↗</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tl-phase">
+  <div class="tl-phase-header p3">
+    <span class="tl-badge w2b">Tuần 2B — cuối tuần</span>
+    <span class="tl-phase-title">Phase 3: Hoàn thiện + nộp</span>
+    <span class="tl-phase-sub">2–3 ngày</span>
+  </div>
+  <div class="tl-steps">
+    <div class="tl-step">
+      <div class="tl-num purple">12</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Wireshark capture + phân tích</p>
+        <p class="tl-step-desc">Chạy Wireshark khi demo, capture TLS handshake, chụp ảnh thấy "Application Data" (không thấy plaintext). Đưa vào slide/báo cáo.</p>
+        <span class="tl-tag demo">Bằng chứng visual</span>
+      </div>
+    </div>
+
+    <div class="tl-step">
+      <div class="tl-num purple">13</div>
+      <div class="tl-step-body">
+        <p class="tl-step-title">Viết báo cáo + slide</p>
+        <p class="tl-step-desc">Ghép kết quả benchmark + pentest + Wireshark vào báo cáo. Dùng các references học thuật đã chuẩn bị.</p>
+        <code class="tl-prompt" onclick="sendPrompt('Giúp tôi viết phần Demonstration Results cho báo cáo project bảo mật, bao gồm bảng benchmark AES/FALCON, kết quả pentest pass/fail, và phân tích Wireshark capture')">Nhờ Claude viết phần này ↗</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
