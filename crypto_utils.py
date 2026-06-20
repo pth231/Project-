@@ -10,21 +10,11 @@ from typing import Tuple
 from rich import print
 
 from Crypto.Cipher import AES
-import sys as _sys
-_sys.path.insert(0, r"D:\Mat_ma_ung_dung\week5")
-try:
-    from ECDHE_lab_menu_v2 import (
-        generate_private_key as _ecdhe_gen,
-        public_key_to_raw as _ecdhe_pub_raw,
-        ecdh_exchange as _ecdh_exchange,
-        hkdf_derive as _hkdf_derive,
-        load_raw_public_key as _load_raw_pub,
-        GROUP_LOOKUP as _GROUP_LOOKUP,
-    )
-    _ECDHE_AVAILABLE = True
-except Exception:
-    _ECDHE_AVAILABLE = False
-    print("! ECDHE_lab_menu_v2 not found — ECDHE functions disabled")
+from ecdhe_utils import (
+    ecdhe_generate_keypair as _ecdhe_generate_keypair,
+    ecdhe_derive_session_key as _ecdhe_derive_session_key,
+    ecdhe_demo as _ecdhe_demo,
+)
 
 import hashlib
 SUPPORTED_HASH_ALGOS = ["sha256","sha384","sha512","sha3_224","sha3_256","sha3_384","sha3_512"]
@@ -287,41 +277,13 @@ def falcon_verify(public_key: bytes, message: bytes, signature: bytes, hash_algo
 
 
 def ecdhe_generate_keypair(group_name="x25519") -> dict:
-    if not _ECDHE_AVAILABLE:
-        raise RuntimeError("ECDHE not available: ECDHE_lab_menu_v2.py not found")
-    group = _GROUP_LOOKUP[group_name]
-    priv = _ecdhe_gen(group)
-    pub_raw = _ecdhe_pub_raw(priv.public_key(), group)
-    print(f"=== ECDHE Keypair ({group_name}) ===")
-    print(f"Public key ({len(pub_raw)} bytes): {pub_raw.hex()[:32]}...")
-    return {"private_key": priv, "public_key_raw": pub_raw, "group": group_name}
+    return _ecdhe_generate_keypair(group_name)
 
 def ecdhe_derive_session_key(private_key, peer_public_raw: bytes, group_name="x25519", info="secure-shop") -> bytes:
-    if not _ECDHE_AVAILABLE:
-        raise RuntimeError("ECDHE not available: ECDHE_lab_menu_v2.py not found")
-    group = _GROUP_LOOKUP[group_name]
-    peer_pub = _load_raw_pub(peer_public_raw, group)
-    shared = _ecdh_exchange(private_key, peer_pub, group)
-    key = _hkdf_derive(shared, group, key_len=32, hash_name="auto", salt=None, info=info.encode())
-    print(f"=== ECDHE Session Key ===")
-    print(f"Shared secret: {shared.hex()[:32]}...")
-    print(f"Session key:   {key.hex()}")
-    return key
+    return _ecdhe_derive_session_key(private_key, peer_public_raw, group_name, info)
 
 def ecdhe_demo(group_name="x25519") -> bool:
-    if not _ECDHE_AVAILABLE:
-        raise RuntimeError("ECDHE not available: ECDHE_lab_menu_v2.py not found")
-    print("=" * 60)
-    print(f"ECDHE Demo: {group_name}")
-    print("=" * 60)
-    nguyen_van_A = ecdhe_generate_keypair(group_name)
-    nguyen_van_B   = ecdhe_generate_keypair(group_name)
-    ak = ecdhe_derive_session_key(nguyen_van_A["private_key"], nguyen_van_B["public_key_raw"],   group_name)
-    bk = ecdhe_derive_session_key(nguyen_van_B["private_key"],   nguyen_van_A["public_key_raw"], group_name)
-    ok = ak == bk
-    print(f"nguyen van A key == nguyen van B key: {ok}")
-    print("OK Forward secrecy demonstrated" if ok else "FAIL Keys do not match")
-    return ok
+    return _ecdhe_demo(group_name)
 
 
 if __name__ == "__main__":
