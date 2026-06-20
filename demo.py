@@ -1,6 +1,6 @@
 """
 End-to-end demo script. Inspired by cmd_demo() in 
-ECDHE_lab_menu_v2.py — prints step-by-step output showing crypto operations.
+ecdhe_core.py — prints step-by-step output showing crypto operations.
 
 This demo runs the full API flow: register → login → verify FALCON JWT.
 Starts server as subprocess, makes HTTP calls, displays results.
@@ -12,13 +12,13 @@ import time
 import asyncio
 import subprocess
 import signal
+import secrets
 from pathlib import Path
 from rich import print
 from rich.table import Table
 
-# Add reference code paths to sys.path for future phases
-sys.path.insert(0, r"D:\Mat_ma_ung_dung\week5")
-sys.path.insert(0, r"D:\Mat_ma_ung_dung\week 7\week07_S1_S2_Codes\week11_Codes")
+# Ensure local project imports work even when demo is launched from another cwd
+sys.path.insert(0, str(Path(__file__).parent))
 
 try:
     import httpx
@@ -93,10 +93,11 @@ async def run_demo() -> None:
             print("-" * 76)
             
             try:
+                random_suffix = secrets.token_hex(4)
                 register_data = {
-                    "username": "nguyen_van_a",
+                    "username": f"nguyen_van_a_{random_suffix}",
                     "password": "secure_password_123",
-                    "email": "nguyenvana@secure-shop.local"
+                    "email": f"nguyenvana_{random_suffix}@secure-shop.local"
                 }
                 
                 print(f"Sending registration request...")
@@ -104,7 +105,10 @@ async def run_demo() -> None:
                 print(f"Email: {register_data['email']}\n")
                 
                 response = await client.post("/register", json=register_data)
-                response.raise_for_status()
+                if response.status_code != 200:
+                    raise RuntimeError(
+                        f"status={response.status_code} body={response.text}"
+                    )
                 
                 result = response.json()
                 print(f"OK Registration successful")

@@ -282,7 +282,7 @@ After Phase 0, the following features are planned:
 ## Student Notes
 
 - All crypto operations print intermediate values for learning
-- Follow ECDHE_lab_menu_v2.py style: print hex values, show steps
+- Follow ecdhe_core.py style: print hex values, show steps
 - JWT is not encrypted, only signed — ciphertext is base64url visible but signature ensures authenticity
 - FALCON-512 provides post-quantum security: resistant to future quantum computers
 - This demo proves "real cryptography" not just theory

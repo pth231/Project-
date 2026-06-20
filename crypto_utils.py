@@ -1,6 +1,6 @@
 """
 This module wraps AES-256-GCM (from PyCryptodome) and FALCON-512 via liboqs.
-Style follows ECDHE_lab_menu_v2.py: functions are standalone and print 
+Style follows ecdhe_core.py: functions are standalone and print 
 intermediate values for learning/demo purposes.
 """
 
@@ -10,10 +10,13 @@ from typing import Tuple
 from rich import print
 
 from Crypto.Cipher import AES
-from ecdhe_utils import (
-    ecdhe_generate_keypair as _ecdhe_generate_keypair,
-    ecdhe_derive_session_key as _ecdhe_derive_session_key,
-    ecdhe_demo as _ecdhe_demo,
+from ecdhe_core import (
+    generate_private_key as _generate_private_key,
+    public_key_to_raw as _public_key_to_raw,
+    ecdh_exchange as _ecdh_exchange,
+    hkdf_derive as _hkdf_derive,
+    load_raw_public_key as _load_raw_public_key,
+    GROUP_LOOKUP as _GROUP_LOOKUP,
 )
 
 import hashlib
@@ -277,13 +280,65 @@ def falcon_verify(public_key: bytes, message: bytes, signature: bytes, hash_algo
 
 
 def ecdhe_generate_keypair(group_name="x25519") -> dict:
-    return _ecdhe_generate_keypair(group_name)
+    if group_name not in _GROUP_LOOKUP:
+        raise ValueError(f"Unsupported group. Choose from: {list(_GROUP_LOOKUP.keys())}")
+
+    group = _GROUP_LOOKUP[group_name]
+    private_key = _generate_private_key(group)
+    public_key_raw = _public_key_to_raw(private_key.public_key(), group)
+
+    print(f"=== ECDHE Keypair ({group_name}) ===")
+    print(f"Public key ({len(public_key_raw)} bytes): {public_key_raw.hex()[:32]}...")
+    print(f"Note: private key stays in memory, never transmitted")
+
+    return {
+        "private_key": private_key,
+        "public_key_raw": public_key_raw,
+        "group": group_name,
+    }
 
 def ecdhe_derive_session_key(private_key, peer_public_raw: bytes, group_name="x25519", info="secure-shop") -> bytes:
-    return _ecdhe_derive_session_key(private_key, peer_public_raw, group_name, info)
+    if group_name not in _GROUP_LOOKUP:
+        raise ValueError(f"Unsupported group. Choose from: {list(_GROUP_LOOKUP.keys())}")
+
+    group = _GROUP_LOOKUP[group_name]
+    peer_pub = _load_raw_public_key(peer_public_raw, group)
+    shared_secret = _ecdh_exchange(private_key, peer_pub, group)
+    session_key = _hkdf_derive(shared_secret, group, key_len=32, hash_name="auto", salt=None, info=info.encode())
+
+    print(f"=== ECDHE Session Key Derivation ===")
+    print(f"Shared secret ({len(shared_secret)} bytes): {shared_secret.hex()[:32]}...")
+    print(f"HKDF info: '{info}'")
+    print(f"Session key (32 bytes): {session_key.hex()}")
+    print(f"OK Session key derived")
+
+    return session_key
 
 def ecdhe_demo(group_name="x25519") -> bool:
-    return _ecdhe_demo(group_name)
+    print("=" * 60)
+    print(f"ECDHE Demo: {group_name} (Forward Secrecy)")
+    print("=" * 60)
+
+    print("\nStep 1: Each party generates ephemeral keypair")
+    alice = ecdhe_generate_keypair(group_name)
+    bob = ecdhe_generate_keypair(group_name)
+
+    print("\nStep 2: Exchange public keys (sent over network)")
+    print(f"Alice sends public key to Bob: {alice['public_key_raw'].hex()[:32]}...")
+    print(f"Bob sends public key to Alice: {bob['public_key_raw'].hex()[:32]}...")
+
+    print("\nStep 3: Each derives session key independently")
+    alice_key = ecdhe_derive_session_key(alice["private_key"], bob["public_key_raw"], group_name)
+    bob_key = ecdhe_derive_session_key(bob["private_key"], alice["public_key_raw"], group_name)
+
+    print("\nStep 4: Verify both keys match")
+    match = alice_key == bob_key
+    print(f"Alice session key: {alice_key.hex()}")
+    print(f"Bob session key:   {bob_key.hex()}")
+    print(f"Keys match: {match}")
+    print("OK Forward secrecy demonstrated — run again to see different keys" if match else "FAIL Keys do not match")
+
+    return match
 
 
 if __name__ == "__main__":
