@@ -10,6 +10,31 @@ from typing import Tuple
 from rich import print
 
 from Crypto.Cipher import AES
+import sys as _sys
+_sys.path.insert(0, r"D:\Mat_ma_ung_dung\week5")
+try:
+    from ECDHE_lab_menu_v2 import (
+        generate_private_key as _ecdhe_gen,
+        public_key_to_raw as _ecdhe_pub_raw,
+        ecdh_exchange as _ecdh_exchange,
+        hkdf_derive as _hkdf_derive,
+        load_raw_public_key as _load_raw_pub,
+        GROUP_LOOKUP as _GROUP_LOOKUP,
+    )
+    _ECDHE_AVAILABLE = True
+except Exception:
+    _ECDHE_AVAILABLE = False
+    print("! ECDHE_lab_menu_v2 not found — ECDHE functions disabled")
+
+import hashlib
+SUPPORTED_HASH_ALGOS = ["sha256","sha384","sha512","sha3_224","sha3_256","sha3_384","sha3_512"]
+
+def hash_message(message: bytes, algo: str = "sha256") -> bytes:
+    if algo not in SUPPORTED_HASH_ALGOS:
+        raise ValueError(f"Unsupported hash. Choose: {SUPPORTED_HASH_ALGOS}")
+    digest = hashlib.new(algo, message).digest()
+    print(f"Hash {algo}: {digest.hex()[:32]}...")
+    return digest
 
 
 def aes_encrypt(plaintext: bytes, key: bytes) -> dict:
@@ -102,9 +127,9 @@ def generate_falcon_keypair() -> Tuple[bytes, bytes]:
     print("=== Generate Keypair ===")
     
     try:
-        import liboqs
-        print("Attempting to use FALCON-512 (liboqs)...")
-        sig = liboqs.OQS_SIG("Falcon-512")
+        import oqs
+        print("Attempting to use FALCON-512 (oqs)...")
+        sig = oqs.Signature("Falcon-512")
         public_key = sig.generate_keyset()
         private_key = sig.export_secret_key()
         print(f"OK FALCON-512 Public key: {len(public_key)} bytes, Private key: {len(private_key)} bytes")
@@ -140,7 +165,7 @@ def generate_falcon_keypair() -> Tuple[bytes, bytes]:
         return (public_key_pem, private_key_pem)
 
 
-def falcon_sign(private_key: bytes, message: bytes) -> bytes:
+def falcon_sign(private_key: bytes, message: bytes, hash_algo: str = "sha256") -> bytes:
     """
     Sign a message using FALCON-512 private key.
     Falls back to RSA PSS signing if liboqs is not available.
@@ -153,12 +178,13 @@ def falcon_sign(private_key: bytes, message: bytes) -> bytes:
         signature bytes
     """
     print("=== Sign Message ===")
+    message = hash_message(message, hash_algo)
     print(f"Message length: {len(message)} bytes")
     
     try:
-        import liboqs
+        import oqs
         print("Algorithm: FALCON-512")
-        sig = liboqs.OQS_SIG("Falcon-512")
+        sig = oqs.Signature("Falcon-512")
         sig.import_secret_key(private_key)
         signature = sig.sign(message)
         print(f"Signature length: {len(signature)} bytes")
@@ -197,7 +223,7 @@ def falcon_sign(private_key: bytes, message: bytes) -> bytes:
         return signature
 
 
-def falcon_verify(public_key: bytes, message: bytes, signature: bytes) -> bool:
+def falcon_verify(public_key: bytes, message: bytes, signature: bytes, hash_algo: str = "sha256") -> bool:
     """
     Verify a FALCON-512 signature.
     Falls back to RSA verification if liboqs is not available.
@@ -211,13 +237,14 @@ def falcon_verify(public_key: bytes, message: bytes, signature: bytes) -> bool:
         True if valid, False otherwise
     """
     print("=== Verify Signature ===")
+    message = hash_message(message, hash_algo)
     print(f"Message length: {len(message)} bytes")
     print(f"Signature length: {len(signature)} bytes")
     
     try:
-        import liboqs
+        import oqs
         print("Algorithm: FALCON-512")
-        sig = liboqs.OQS_SIG("Falcon-512")
+        sig = oqs.Signature("Falcon-512")
         sig.import_public_key(public_key)
         is_valid = sig.verify(message, signature)
         
@@ -259,6 +286,44 @@ def falcon_verify(public_key: bytes, message: bytes, signature: bytes) -> bool:
             return False
 
 
+def ecdhe_generate_keypair(group_name="x25519") -> dict:
+    if not _ECDHE_AVAILABLE:
+        raise RuntimeError("ECDHE not available: ECDHE_lab_menu_v2.py not found")
+    group = _GROUP_LOOKUP[group_name]
+    priv = _ecdhe_gen(group)
+    pub_raw = _ecdhe_pub_raw(priv.public_key(), group)
+    print(f"=== ECDHE Keypair ({group_name}) ===")
+    print(f"Public key ({len(pub_raw)} bytes): {pub_raw.hex()[:32]}...")
+    return {"private_key": priv, "public_key_raw": pub_raw, "group": group_name}
+
+def ecdhe_derive_session_key(private_key, peer_public_raw: bytes, group_name="x25519", info="secure-shop") -> bytes:
+    if not _ECDHE_AVAILABLE:
+        raise RuntimeError("ECDHE not available: ECDHE_lab_menu_v2.py not found")
+    group = _GROUP_LOOKUP[group_name]
+    peer_pub = _load_raw_pub(peer_public_raw, group)
+    shared = _ecdh_exchange(private_key, peer_pub, group)
+    key = _hkdf_derive(shared, group, key_len=32, hash_name="auto", salt=None, info=info.encode())
+    print(f"=== ECDHE Session Key ===")
+    print(f"Shared secret: {shared.hex()[:32]}...")
+    print(f"Session key:   {key.hex()}")
+    return key
+
+def ecdhe_demo(group_name="x25519") -> bool:
+    if not _ECDHE_AVAILABLE:
+        raise RuntimeError("ECDHE not available: ECDHE_lab_menu_v2.py not found")
+    print("=" * 60)
+    print(f"ECDHE Demo: {group_name}")
+    print("=" * 60)
+    nguyen_van_A = ecdhe_generate_keypair(group_name)
+    nguyen_van_B   = ecdhe_generate_keypair(group_name)
+    ak = ecdhe_derive_session_key(nguyen_van_A["private_key"], nguyen_van_B["public_key_raw"],   group_name)
+    bk = ecdhe_derive_session_key(nguyen_van_B["private_key"],   nguyen_van_A["public_key_raw"], group_name)
+    ok = ak == bk
+    print(f"nguyen van A key == nguyen van B key: {ok}")
+    print("OK Forward secrecy demonstrated" if ok else "FAIL Keys do not match")
+    return ok
+
+
 if __name__ == "__main__":
     print("" + "=" * 76)
     print("crypto_utils.py Self-Test")
@@ -297,6 +362,11 @@ if __name__ == "__main__":
     
     assert is_valid, "FALCON verification failed!"
     print("OK FALCON signing/verification test passed\n")
+
+    # Test 3: ECDHE key exchange
+    print("Test 3: ECDHE Key Exchange\n")
+    assert ecdhe_demo(), "ECDHE failed!"
+    print("OK ECDHE test passed\n")
     
     # Final summary
     print("" + "=" * 76)

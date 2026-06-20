@@ -229,7 +229,7 @@ async def run_demo() -> None:
     operations = [
         ("Register", "Argon2 password hashing"),
         ("Login", "FALCON-512 JWT signature"),
-        ("JWT Decode", "Post-quantum cryptography"),
+        ("JWT Structure", "Post-quantum cryptography"),
     ]
     
     for op, feature in operations:
