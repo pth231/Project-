@@ -9,7 +9,9 @@ import base64
 import binascii
 from datetime import datetime, timedelta
 from rich import print
+from typing import Callable, Sequence
 
+from fastapi import HTTPException, Request, Depends
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, InvalidHash
 
@@ -166,3 +168,99 @@ def verify_jwt(token: str, falcon_public_key: bytes) -> dict:
     except Exception as e:
         print(f"FAIL JWT verification failed: {str(e)}\n")
         raise ValueError(f"JWT verification failed: {str(e)}")
+
+
+# ============================================================================
+# FASTAPI DEPENDENCY INJECTION FOR JWT AUTHORIZATION
+# ============================================================================
+
+def get_current_user(request: Request, falcon_public_key: bytes) -> dict:
+    """
+    Extract and verify JWT token from Authorization header.
+    
+    This is a FastAPI dependency that:
+    1. Extracts Authorization: Bearer <token> header
+    2. Verifies FALCON signature of JWT
+    3. Returns decoded payload
+    
+    Args:
+        request: FastAPI Request object
+        falcon_public_key: FALCON-512 public key for verification
+        
+    Returns:
+        Decoded JWT payload dict with {username, email, role, iat, exp}
+        
+    Raises:
+        HTTPException 401: if token is missing or invalid
+    """
+    print(f"\n[cyan]=== JWT VERIFICATION ===[/cyan]")
+    
+    # Extract Authorization header
+    auth_header = request.headers.get("Authorization")
+    
+    if not auth_header:
+        print(f"[red]FAIL Missing authorization header[/red]")
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    
+    # Parse Bearer token
+    try:
+        scheme, token = auth_header.split(" ")
+        if scheme.lower() != "bearer":
+            raise ValueError("Invalid authentication scheme")
+    except (ValueError, IndexError):
+        print(f"[red]FAIL Invalid authorization header format[/red]")
+        raise HTTPException(status_code=401, detail="Invalid authorization header format")
+    
+    print(f"[dim]Token (first 30 chars): {token[:30]}...[/dim]")
+    
+    # Verify JWT
+    try:
+        payload = verify_jwt(token, falcon_public_key)
+        print(f"[green]✓ User authenticated: {payload.get('username')}[/green]")
+        return payload
+    except ValueError as e:
+        print(f"[red]FAIL JWT verification failed: {str(e)}[/red]")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+def require_role(*allowed_roles: str) -> Callable:
+    """
+    Factory function that returns a dependency for role-based access control.
+    
+    Usage:
+        @app.get("/admin")
+        def admin_endpoint(user: dict = Depends(require_role("admin"))):
+            return user
+    
+    Args:
+        allowed_roles: tuple of allowed role strings (e.g., "admin", "customer")
+        
+    Returns:
+        Callable dependency that enforces role checking
+        
+    Raises:
+        HTTPException 403: if user role is not in allowed_roles
+    """
+    def verify_role(
+        request: Request,
+        falcon_public_key: bytes
+    ) -> dict:
+        # Get current user (will verify JWT)
+        user = get_current_user(request, falcon_public_key)
+        
+        user_role = user.get("role")
+        print(f"\n[cyan]=== ROLE CHECK ===[/cyan]")
+        print(f"[dim]User: {user.get('username')}, Role: {user_role}[/dim]")
+        print(f"[dim]Allowed roles: {list(allowed_roles)}[/dim]")
+        
+        if user_role not in allowed_roles:
+            print(f"[red]✗ Access denied: insufficient permissions[/red]")
+            raise HTTPException(
+                status_code=403,
+                detail=f"Insufficient permissions. Required roles: {list(allowed_roles)}"
+            )
+        
+        print(f"[green]✓ Role check passed[/green]")
+        return user
+    
+    return verify_role

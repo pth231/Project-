@@ -38,7 +38,10 @@ async def run_demo() -> None:
     print("" + "=" * 76 + "\n")
     
     results = {}
-    
+    registered_username = None
+    registered_password = "secure_password_123"
+    token = None
+
     # =========================================================================
     # STARTUP: Start FastAPI server
     # =========================================================================
@@ -94,9 +97,10 @@ async def run_demo() -> None:
             
             try:
                 random_suffix = secrets.token_hex(4)
+                registered_username = f"nguyen_van_a_{random_suffix}"
                 register_data = {
-                    "username": f"nguyen_van_a_{random_suffix}",
-                    "password": "secure_password_123",
+                    "username": registered_username,
+                    "password": registered_password,
                     "email": f"nguyenvana_{random_suffix}@secure-shop.local"
                 }
                 
@@ -118,6 +122,7 @@ async def run_demo() -> None:
             except Exception as e:
                 print(f"FAIL Registration failed: {str(e)}\n")
                 results["Register"] = False
+                registered_username = None
             
             # =====================================================================
             # STEP 2: Login
@@ -126,9 +131,12 @@ async def run_demo() -> None:
             print("-" * 76)
             
             try:
+                if not registered_username:
+                    raise RuntimeError("Registration failed — cannot proceed with login.")
+
                 login_data = {
-                    "username": "nguyen_van_a",
-                    "password": "secure_password_123"
+                    "username": registered_username,
+                    "password": registered_password
                 }
                 
                 print(f"Sending login request...")
