@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, String, Float, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.declarative import declarative_base
@@ -27,7 +28,11 @@ from crypto_utils import aes_encrypt, aes_decrypt
 # DATABASE CONFIGURATION
 # ============================================================================
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres@localhost/secure_shop")
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable not configured")
 
 engine = create_engine(
     DATABASE_URL,
@@ -46,15 +51,11 @@ Base = declarative_base()
 # ============================================================================
 
 # Load AES key from environment - should be 32 bytes (256 bits)
-AES_KEY_HEX = os.getenv("AES_KEY", "")
+AES_KEY_HEX = os.getenv("AES_KEY")
 if not AES_KEY_HEX:
-    print("[yellow]⚠ AES_KEY not found in environment, generating random key[/yellow]")
-    print("[red]SECURITY WARNING: Use a persistent key in production![/red]")
-    AES_KEY = secrets.token_bytes(32)
-    AES_KEY_HEX = base64.b16encode(AES_KEY).decode()
-    print(f"[dim]Generated AES_KEY (hex): {AES_KEY_HEX}[/dim]")
-else:
-    AES_KEY = base64.b16decode(AES_KEY_HEX)
+    raise RuntimeError("AES_KEY environment variable not configured")
+
+AES_KEY = bytes.fromhex(AES_KEY_HEX)
 
 print(f"[green]✓ AES-256 key loaded: {len(AES_KEY)} bytes[/green]")
 
@@ -136,22 +137,26 @@ class Order(Base):
     Order model with encrypted invoice data and FALCON signature.
     
     Fields:
-    - id: UUID primary key
+    - id: UUID internal primary key
+    - order_id: external order identifier used by the API
     - user_id: FK to User.id
     - amount: order total (float)
     - status: pending/paid/cancelled
     - invoice_data_encrypted: AES-encrypted invoice JSON
     - falcon_signature: base64-encoded FALCON signature of invoice hash
+    - session_key_fingerprint: fingerprint of the derived session key
     - created_at: timestamp
     """
     __tablename__ = "orders"
     
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    order_id = Column(String(100), unique=True, nullable=False, index=True)
     user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     amount = Column(Float, nullable=False)
     status = Column(String(50), default="pending", nullable=False, index=True)
     invoice_data_encrypted = Column(Text, nullable=False)
     falcon_signature = Column(Text, nullable=False)
+    session_key_fingerprint = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     
     def set_invoice_data(self, invoice_dict: dict):
@@ -165,7 +170,7 @@ class Order(Base):
         return json.loads(invoice_json)
     
     def __repr__(self):
-        return f"<Order(id={self.id}, user_id={self.user_id}, amount={self.amount}, status='{self.status}')>"
+        return f"<Order(id={self.id}, order_id='{self.order_id}', user_id={self.user_id}, amount={self.amount}, status='{self.status}')>"
 
 
 # ============================================================================

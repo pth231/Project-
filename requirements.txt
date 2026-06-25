@@ -16,7 +16,8 @@ argon2-cffi==23.1.0
 
 # Database
 sqlalchemy==2.0.30
-psycopg2-binary==2.9.9
+psycopg2-binary==3.1.18
+python-dotenv==1.0.0
 
 # HTTP client for demo script
 httpx==0.27.0

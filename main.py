@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, Security
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 import uvicorn
 from rich import print
@@ -8,12 +9,12 @@ from collections import defaultdict
 from auth import hash_password, verify_password, create_jwt, verify_jwt, get_current_user, require_role
 from crypto_utils import generate_falcon_keypair
 from order_service import OrderRequest, create_order_with_signature, verify_order_signature
+from models import SessionLocal, User, Order, init_db
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 app = FastAPI(title="Secure Shop API", version="0.1.0")
-
-# In-memory storage
-users_db = {}  # {username: {"password_hash": str, "email": str, "role": str}}
-orders_db = {}  # {order_id: {"order_data": dict, "signature": str, "timestamp": str}}
+security = HTTPBearer()
 
 # Rate limiter for brute force protection
 failed_login_attempts = defaultdict(list)  # {username: [(timestamp1, ...), ...]}
@@ -62,6 +63,19 @@ def get_falcon_public_key() -> bytes:
     return app.state.FALCON_PUBLIC_KEY
 
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@app.on_event("startup")
+async def startup_event():
+    init_db()
+
+
 # Request models
 class RegisterRequest(BaseModel):
     username: str
@@ -86,7 +100,7 @@ def read_root():
 
 
 @app.post("/register", response_model=dict)
-def register(req: RegisterRequest):
+def register(req: RegisterRequest, db: Session = Depends(get_db)):
     """
     Register a new user.
     
@@ -98,7 +112,8 @@ def register(req: RegisterRequest):
     print(f"Username: {req.username}")
     print(f"Email: {req.email}")
     
-    if req.username in users_db:
+    existing_user = db.query(User).filter(User.username == req.username).first()
+    if existing_user is not None:
         print(f"FAIL User already exists\n")
         raise HTTPException(status_code=400, detail="User already exists")
     
@@ -108,12 +123,21 @@ def register(req: RegisterRequest):
     # Assign role: admin if username is "admin", otherwise customer
     role = "admin" if req.username == "admin" else "customer"
     
-    # Store user
-    users_db[req.username] = {
-        "password_hash": hashed,
-        "email": req.email,
-        "role": role
-    }
+    # Create user record
+    user = User(
+        username=req.username,
+        password_hash=hashed,
+        role=role
+    )
+    user.set_email(req.email)
+    
+    try:
+        db.add(user)
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        print(f"FAIL User registration DB error: {str(e)}\n")
+        raise HTTPException(status_code=500, detail="Registration failed")
     
     print(f"OK User registered with role: {role}\n")
     return {
@@ -124,7 +148,7 @@ def register(req: RegisterRequest):
 
 
 @app.post("/login", response_model=LoginResponse)
-def login(req: LoginRequest):
+def login(req: LoginRequest, db: Session = Depends(get_db)):
     """
     Login user and return FALCON-signed JWT.
     
@@ -141,15 +165,14 @@ def login(req: LoginRequest):
         print(f"FAIL Rate limited (too many failed attempts)\n")
         raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
     
-    if req.username not in users_db:
+    user = db.query(User).filter(User.username == req.username).first()
+    if user is None:
         print(f"FAIL User not found\n")
         record_failed_login(req.username)  # Record attempt
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
-    user = users_db[req.username]
-    
     # Verify password
-    if not verify_password(req.password, user["password_hash"]):
+    if not verify_password(req.password, user.password_hash):
         print(f"FAIL Login failed\n")
         record_failed_login(req.username)  # Record failed attempt
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -160,8 +183,8 @@ def login(req: LoginRequest):
     # Create JWT with FALCON signature
     payload = {
         "username": req.username,
-        "email": user["email"],
-        "role": user.get("role", "customer")
+        "email": user.get_email(),
+        "role": user.role
     }
     token = create_jwt(payload, FALCON_PRIVATE_KEY)
     
@@ -201,7 +224,9 @@ async def get_user_me(
 @app.get("/admin/users")
 async def get_users_list(
     request: Request,
-    falcon_public_key: bytes = Depends(get_falcon_public_key)
+    falcon_public_key: bytes = Depends(get_falcon_public_key),
+    credentials = Security(security),
+    db: Session = Depends(get_db)
 ) -> dict:
     """
     Get list of all users (admin only).
@@ -216,14 +241,15 @@ async def get_users_list(
     print(f"\n=== GET /admin/users ===")
     print(f"[dim]Admin: {current_user.get('username')}[/dim]")
     
+    users = db.query(User).all()
     # Return user list without password hashes
     user_list = [
         {
-            "username": username,
-            "email": user_data.get("email"),
-            "role": user_data.get("role", "customer")
+            "username": user.username,
+            "email": user.get_email(),
+            "role": user.role
         }
-        for username, user_data in users_db.items()
+        for user in users
     ]
     
     print(f"[green]OK Returning {len(user_list)} users[/green]")
@@ -238,7 +264,9 @@ async def get_users_list(
 async def place_order(
     order_request: OrderRequest,
     request: Request,
-    falcon_public_key: bytes = Depends(get_falcon_public_key)
+    falcon_public_key: bytes = Depends(get_falcon_public_key),
+    credentials = Security(security),
+    db: Session = Depends(get_db)
 ) -> dict:
     """
     Place a secure order with ECDHE, FALCON signature, and AES encryption.
@@ -264,29 +292,44 @@ async def place_order(
             falcon_private_key=FALCON_PRIVATE_KEY,
             falcon_public_key=falcon_public_key
         )
-        
-        # Store order in memory
-        orders_db[response.order_id] = {
-            "username": username,
-            "order_data": invoice_data,
-            "signature": response.invoice_signature,
-            "session_key_fp": response.session_key_fingerprint
-        }
-        
-        print(f"\n[green]✓ Order stored in database[/green]")
-        
-        return response.dict()
-        
     except Exception as e:
         print(f"[red]✗ Order processing failed: {str(e)}[/red]")
         raise HTTPException(status_code=400, detail=str(e))
+    
+    user = db.query(User).filter(User.username == username).first()
+    if user is None:
+        print(f"[red]✗ User not found for order persistence\n")
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    order = Order(
+        order_id=response.order_id,
+        user_id=user.id,
+        amount=response.total,
+        falcon_signature=response.invoice_signature,
+        session_key_fingerprint=response.session_key_fingerprint
+    )
+    order.set_invoice_data(invoice_data)
+    
+    try:
+        db.add(order)
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        print(f"[red]✗ Order persistence failed: {str(e)}[/red]")
+        raise HTTPException(status_code=500, detail="Order persistence failed")
+    
+    print(f"\n[green]✓ Order stored in database[/green]")
+    
+    return response.dict()
 
 
 @app.get("/orders/{order_id}/verify")
 async def verify_order(
     order_id: str,
     request: Request,
-    falcon_public_key: bytes = Depends(get_falcon_public_key)
+    falcon_public_key: bytes = Depends(get_falcon_public_key),
+    credentials = Security(security),
+    db: Session = Depends(get_db)
 ) -> dict:
     """
     Verify FALCON signature of an order.
@@ -307,23 +350,24 @@ async def verify_order(
     current_user = get_current_user(request, falcon_public_key)
     username = current_user.get("username")
     
-    # Check if order exists
-    if order_id not in orders_db:
+    order = db.query(Order).filter(Order.order_id == order_id).first()
+    if order is None:
         print(f"[red]Order not found[/red]")
         raise HTTPException(status_code=404, detail="Order not found")
     
-    order_info = orders_db[order_id]
-    
-    # Only allow user to verify their own orders
-    if order_info["username"] != username:
+    user = db.query(User).filter(User.username == username).first()
+    if user is None or order.user_id != user.id:
         print(f"[red]✗ Access denied: cannot verify other user's orders[/red]")
         raise HTTPException(status_code=403, detail="Cannot verify other user's orders")
+    
+    invoice_data = order.get_invoice_data()
+    signature_b64 = order.falcon_signature
     
     # Verify signature
     is_valid = verify_order_signature(
         order_id=order_id,
-        invoice_data=order_info["order_data"],
-        signature_b64=order_info["signature"],
+        invoice_data=invoice_data,
+        signature_b64=signature_b64,
         falcon_public_key=falcon_public_key
     )
     
